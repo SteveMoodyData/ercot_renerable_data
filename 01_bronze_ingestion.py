@@ -1,15 +1,15 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # ERCOT Renewable Data Ingestion - Bronze Layer
-# MAGIC 
+# MAGIC
 # MAGIC This notebook ingests solar and wind forecast/actual data from ERCOT using the `gridstatus` library.
-# MAGIC 
+# MAGIC
 # MAGIC ## Data Sources
 # MAGIC - Hourly Solar Actual & Forecast (system-wide and by region)
 # MAGIC - Hourly Wind Actual & Forecast (system-wide and by region)
 # MAGIC - 7-Day Load Forecast
 # MAGIC - Fuel Mix (for context)
-# MAGIC 
+# MAGIC
 # MAGIC ## Architecture
 # MAGIC - **Bronze**: Raw API responses stored as Delta tables with metadata
 # MAGIC - **Silver**: Cleaned, standardized, and joined datasets
@@ -86,7 +86,7 @@ def get_ercot_api() -> ErcotAPI:
     return ErcotAPI(
         username=creds["username"],
         password=creds["password"],
-        subscription_key=creds["subscription_key"],
+        public_subscription_key=creds["subscription_key"],
         sleep_seconds=0.3,  # Rate limiting
         max_retries=3,
     )
@@ -99,7 +99,7 @@ print("✓ ERCOT API connection established")
 
 # MAGIC %md
 # MAGIC ## Data Source Definitions
-# MAGIC 
+# MAGIC
 # MAGIC Define the endpoints and metadata for each data source we want to ingest.
 
 # COMMAND ----------
