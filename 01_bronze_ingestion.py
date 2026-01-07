@@ -330,6 +330,33 @@ def ingest_fuel_mix(
     
     return df
 
+
+def ingest_load_forecast(
+    api: ErcotAPI,
+    start_date: str,
+    end_date: Optional[str] = None,
+    verbose: bool = False
+) -> pd.DataFrame:
+    """
+    Ingest 7-day load forecast by weather zone.
+    
+    Returns DataFrame with load forecasts broken down by weather zone.
+    """
+    df = api.get_load_forecast(
+        date=start_date,
+        end=end_date,
+        verbose=verbose
+    )
+    
+    # Rename columns to remove spaces (Delta Lake doesn't allow spaces)
+    df.columns = [col.replace(" ", "_").replace("(", "").replace(")", "") for col in df.columns]
+    
+    df["_ingested_at"] = datetime.utcnow()
+    df["_source"] = "ercot_api"
+    df["_endpoint"] = "/np3-565-cd/lf_by_model_weather_zone"
+    
+    return df
+
 # COMMAND ----------
 
 # MAGIC %md
@@ -501,6 +528,8 @@ def run_bronze_ingestion():
                 df = ingest_wind_hourly(api, start_date, end_date, verbose=True)
             elif source_key == "wind_hourly_regional":
                 df = ingest_wind_hourly_regional(api, start_date, end_date, verbose=True)
+            elif source_key == "load_forecast":
+                df = ingest_load_forecast(api, start_date, end_date, verbose=True)
             elif source_key == "fuel_mix":
                 df = ingest_fuel_mix(verbose=True)
             else:
