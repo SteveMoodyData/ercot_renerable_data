@@ -571,11 +571,25 @@ def run_bronze_quality_checks(table_name: str) -> dict:
     if count == 0:
         return checks
     
+    # Determine the timestamp column (different tables use different names)
+    df_columns = spark.table(full_table_name).columns
+    if "Interval_Start" in df_columns:
+        time_col = "Interval_Start"
+    elif "Time" in df_columns:
+        time_col = "Time"
+    else:
+        # No recognized time column, skip time-based checks
+        checks["min_date"] = "N/A"
+        checks["max_date"] = "N/A"
+        checks["null_time_column"] = "N/A"
+        checks["duplicate_intervals"] = "N/A"
+        return checks
+    
     # Date range
     date_range = spark.sql(f"""
         SELECT 
-            MIN(DATE(Interval_Start)) as min_date,
-            MAX(DATE(Interval_Start)) as max_date
+            MIN(DATE({time_col})) as min_date,
+            MAX(DATE({time_col})) as max_date
         FROM {full_table_name}
     """).collect()[0]
     checks["min_date"] = str(date_range["min_date"])
@@ -584,20 +598,20 @@ def run_bronze_quality_checks(table_name: str) -> dict:
     # Null check on key columns
     null_check = spark.sql(f"""
         SELECT 
-            SUM(CASE WHEN Interval_Start IS NULL THEN 1 ELSE 0 END) as null_interval_start,
+            SUM(CASE WHEN {time_col} IS NULL THEN 1 ELSE 0 END) as null_time_column,
             SUM(CASE WHEN _ingested_at IS NULL THEN 1 ELSE 0 END) as null_ingested_at
         FROM {full_table_name}
     """).collect()[0]
-    checks["null_interval_start"] = null_check["null_interval_start"]
+    checks["null_time_column"] = null_check["null_time_column"]
     checks["null_ingested_at"] = null_check["null_ingested_at"]
     
     # Duplicate check
     dup_check = spark.sql(f"""
         SELECT COUNT(*) as dup_count
         FROM (
-            SELECT Interval_Start, COUNT(*) as cnt
+            SELECT {time_col}, COUNT(*) as cnt
             FROM {full_table_name}
-            GROUP BY Interval_Start
+            GROUP BY {time_col}
             HAVING COUNT(*) > 1
         )
     """).collect()[0]
