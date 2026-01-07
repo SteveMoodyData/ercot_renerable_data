@@ -53,13 +53,13 @@ def transform_solar_hourly():
     
     silver_df = (
         bronze_df
-        # Rename columns to snake_case
-        .withColumnRenamed("Interval Start", "interval_start")
-        .withColumnRenamed("Interval End", "interval_end")
-        .withColumnRenamed("Time", "report_time")
+        # Rename columns to snake_case (bronze already has underscores, just lowercase)
+        .withColumnRenamed("Interval_Start", "interval_start")
+        .withColumnRenamed("Interval_End", "interval_end")
+        .withColumnRenamed("Publish_Time", "report_time")
         
         # Standardize measurement columns
-        .withColumnRenamed("ACTUAL_SYSTEM_WIDE", "actual_mw")
+        .withColumnRenamed("GEN_SYSTEM_WIDE", "actual_mw")
         .withColumnRenamed("HSL_SYSTEM_WIDE", "hsl_mw")  # High Sustained Limit (potential)
         .withColumnRenamed("STPPF_SYSTEM_WIDE", "stppf_forecast_mw")  # Short-Term PV Power Forecast
         .withColumnRenamed("PVGRPP_SYSTEM_WIDE", "pvgrpp_forecast_mw")  # PV Generation Resource Production Potential
@@ -136,13 +136,13 @@ def transform_wind_hourly():
     
     silver_df = (
         bronze_df
-        # Rename columns to snake_case
-        .withColumnRenamed("Interval Start", "interval_start")
-        .withColumnRenamed("Interval End", "interval_end")
-        .withColumnRenamed("Time", "report_time")
+        # Rename columns to snake_case (bronze already has underscores, just lowercase)
+        .withColumnRenamed("Interval_Start", "interval_start")
+        .withColumnRenamed("Interval_End", "interval_end")
+        .withColumnRenamed("Publish_Time", "report_time")
         
         # Standardize measurement columns
-        .withColumnRenamed("ACTUAL_SYSTEM_WIDE", "actual_mw")
+        .withColumnRenamed("GEN_SYSTEM_WIDE", "actual_mw")
         .withColumnRenamed("HSL_SYSTEM_WIDE", "hsl_mw")
         .withColumnRenamed("STWPF_SYSTEM_WIDE", "stwpf_forecast_mw")  # Short-Term Wind Power Forecast
         .withColumnRenamed("WGRPP_SYSTEM_WIDE", "wgrpp_forecast_mw")  # Wind Generation Resource Production Potential
@@ -317,11 +317,11 @@ def transform_solar_regional():
     # Build unpivot expression
     # The regional data has columns like: GEN_PANHANDLE, STPPF_PANHANDLE, etc.
     
-    # First, standardize column names
+    # First, standardize column names (bronze already has underscores)
     silver_df = (
         bronze_df
-        .withColumnRenamed("Interval Start", "interval_start")
-        .withColumnRenamed("Interval End", "interval_end")
+        .withColumnRenamed("Interval_Start", "interval_start")
+        .withColumnRenamed("Interval_End", "interval_end")
         .withColumn("hour_of_day", hour(col("interval_start")))
         .withColumn("year", year(col("interval_start")))
         .withColumn("month", month(col("interval_start")))
@@ -351,8 +351,8 @@ def transform_wind_regional():
     
     silver_df = (
         bronze_df
-        .withColumnRenamed("Interval Start", "interval_start")
-        .withColumnRenamed("Interval End", "interval_end")
+        .withColumnRenamed("Interval_Start", "interval_start")
+        .withColumnRenamed("Interval_End", "interval_end")
         .withColumn("hour_of_day", hour(col("interval_start")))
         .withColumn("year", year(col("interval_start")))
         .withColumn("month", month(col("interval_start")))

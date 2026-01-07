@@ -187,6 +187,9 @@ def ingest_solar_hourly(
         verbose=verbose
     )
     
+    # Rename columns to remove spaces (Delta Lake doesn't allow spaces)
+    df.columns = [col.replace(" ", "_").replace("(", "").replace(")", "") for col in df.columns]
+    
     # Add ingestion metadata
     df["_ingested_at"] = datetime.utcnow()
     df["_source"] = "ercot_api"
@@ -207,6 +210,9 @@ def ingest_solar_hourly_regional(
         end=end_date,
         verbose=verbose
     )
+    
+    # Rename columns to remove spaces (Delta Lake doesn't allow spaces)
+    df.columns = [col.replace(" ", "_").replace("(", "").replace(")", "") for col in df.columns]
     
     df["_ingested_at"] = datetime.utcnow()
     df["_source"] = "ercot_api"
@@ -233,6 +239,9 @@ def ingest_wind_hourly(
         verbose=verbose
     )
     
+    # Rename columns to remove spaces (Delta Lake doesn't allow spaces)
+    df.columns = [col.replace(" ", "_").replace("(", "").replace(")", "") for col in df.columns]
+    
     df["_ingested_at"] = datetime.utcnow()
     df["_source"] = "ercot_api"
     df["_endpoint"] = "/np4-732-cd/wpp_hrly_avrg_actl_fcast"
@@ -253,6 +262,9 @@ def ingest_wind_hourly_regional(
         verbose=verbose
     )
     
+    # Rename columns to remove spaces (Delta Lake doesn't allow spaces)
+    df.columns = [col.replace(" ", "_").replace("(", "").replace(")", "") for col in df.columns]
+    
     df["_ingested_at"] = datetime.utcnow()
     df["_source"] = "ercot_api"
     df["_endpoint"] = "/np4-742-cd/wpp_hrly_actual_fcast_geo"
@@ -272,6 +284,9 @@ def ingest_fuel_mix(
     """
     ercot = Ercot()
     df = ercot.get_fuel_mix(date=start_date, verbose=verbose)
+    
+    # Rename columns to remove spaces (Delta Lake doesn't allow spaces)
+    df.columns = [col.replace(" ", "_").replace("(", "").replace(")", "") for col in df.columns]
     
     df["_ingested_at"] = datetime.utcnow()
     df["_source"] = "ercot_web"
@@ -304,13 +319,13 @@ def write_to_bronze(
     # Convert to Spark DataFrame
     spark_df = spark.createDataFrame(df)
     
-    # Add partition columns if time-based
-    if "Interval Start" in spark_df.columns:
+    # Add partition columns if time-based (columns now have underscores)
+    if "Interval_Start" in spark_df.columns:
         spark_df = (
             spark_df
-            .withColumn("year", year(col("Interval Start")))
-            .withColumn("month", month(col("Interval Start")))
-            .withColumn("day", dayofmonth(col("Interval Start")))
+            .withColumn("year", year(col("Interval_Start")))
+            .withColumn("month", month(col("Interval_Start")))
+            .withColumn("day", dayofmonth(col("Interval_Start")))
         )
     elif "Time" in spark_df.columns:
         spark_df = (
@@ -364,7 +379,7 @@ def get_last_loaded_date(table_name: str) -> Optional[datetime]:
     
     try:
         result = spark.sql(f"""
-            SELECT MAX(DATE(`Interval Start`)) as max_date 
+            SELECT MAX(DATE(Interval_Start)) as max_date 
             FROM {full_table_name}
         """).collect()
         
@@ -536,8 +551,8 @@ def run_bronze_quality_checks(table_name: str) -> dict:
     # Date range
     date_range = spark.sql(f"""
         SELECT 
-            MIN(DATE(`Interval Start`)) as min_date,
-            MAX(DATE(`Interval Start`)) as max_date
+            MIN(DATE(Interval_Start)) as min_date,
+            MAX(DATE(Interval_Start)) as max_date
         FROM {full_table_name}
     """).collect()[0]
     checks["min_date"] = str(date_range["min_date"])
@@ -546,7 +561,7 @@ def run_bronze_quality_checks(table_name: str) -> dict:
     # Null check on key columns
     null_check = spark.sql(f"""
         SELECT 
-            SUM(CASE WHEN `Interval Start` IS NULL THEN 1 ELSE 0 END) as null_interval_start,
+            SUM(CASE WHEN Interval_Start IS NULL THEN 1 ELSE 0 END) as null_interval_start,
             SUM(CASE WHEN _ingested_at IS NULL THEN 1 ELSE 0 END) as null_ingested_at
         FROM {full_table_name}
     """).collect()[0]
@@ -557,9 +572,9 @@ def run_bronze_quality_checks(table_name: str) -> dict:
     dup_check = spark.sql(f"""
         SELECT COUNT(*) as dup_count
         FROM (
-            SELECT `Interval Start`, COUNT(*) as cnt
+            SELECT Interval_Start, COUNT(*) as cnt
             FROM {full_table_name}
-            GROUP BY `Interval Start`
+            GROUP BY Interval_Start
             HAVING COUNT(*) > 1
         )
     """).collect()[0]
