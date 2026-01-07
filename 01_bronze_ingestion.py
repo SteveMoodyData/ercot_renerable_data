@@ -56,6 +56,42 @@ SCHEMA_GOLD = "gold"
 # Storage paths (adjust for your environment)
 BRONZE_PATH = f"/Volumes/{CATALOG}/{SCHEMA_BRONZE}/raw"
 
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Job Parameters (Widgets)
+
+# COMMAND ----------
+
+# Widget parameters for job scheduling - configure these before running
+dbutils.widgets.text("start_date", "", "Start Date (YYYY-MM-DD)")
+dbutils.widgets.text("end_date", "", "End Date (YYYY-MM-DD)")
+dbutils.widgets.dropdown("load_type", "incremental", ["incremental", "full", "date_range"])
+
+# Data source options (defined here, referenced by widget below)
+DATA_SOURCE_OPTIONS = [
+    "solar_hourly",
+    "solar_hourly_regional", 
+    "wind_hourly",
+    "wind_hourly_regional",
+    "load_forecast",
+    "fuel_mix"
+]
+
+dbutils.widgets.multiselect(
+    "sources", 
+    "solar_hourly", 
+    DATA_SOURCE_OPTIONS,
+    "Data Sources"
+)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Credentials Setup
+
+# COMMAND ----------
+
 # API credentials from Databricks secrets
 # Set these up: databricks secrets create-scope ercot
 # databricks secrets put-secret ercot api_username
@@ -420,19 +456,6 @@ def determine_load_dates(
 
 # MAGIC %md
 # MAGIC ## Execute Bronze Ingestion
-
-# COMMAND ----------
-
-# Widget parameters for job scheduling
-dbutils.widgets.text("start_date", "", "Start Date (YYYY-MM-DD)")
-dbutils.widgets.text("end_date", "", "End Date (YYYY-MM-DD)")
-dbutils.widgets.dropdown("load_type", "incremental", ["incremental", "full", "date_range"])
-dbutils.widgets.multiselect(
-    "sources", 
-    "solar_hourly", 
-    list(DATA_SOURCES.keys()),
-    "Data Sources"
-)
 
 # COMMAND ----------
 
