@@ -75,7 +75,9 @@ DATA_SOURCE_OPTIONS = [
     "wind_hourly",
     "wind_hourly_regional",
     "load_forecast",
-    "fuel_mix"
+    "fuel_mix",
+    "lmp_settlement_point",
+    "lmp_dam",
 ]
 
 dbutils.widgets.multiselect(
@@ -189,6 +191,22 @@ DATA_SOURCES = {
         "frequency": "5min",
         "table_name": "fuel_mix",
         "partition_cols": ["year", "month", "day"],
+    },
+    "lmp_settlement_point": {
+        "description": "Real-time LMP by settlement point (SCED ~5min)",
+        "method": "get_lmp_by_settlement_point",
+        "endpoint": "/np6-905-cd/spp_node_zone_hub",
+        "frequency": "5min",
+        "table_name": "lmp_by_settlement_point",
+        "partition_cols": ["year", "month", "day"],
+    },
+    "lmp_dam": {
+        "description": "Day-Ahead Market hourly LMPs by bus",
+        "method": "get_lmp_by_bus_dam",
+        "endpoint": "/np4-183-cd/dam_hourly_lmp",
+        "frequency": "daily",
+        "table_name": "lmp_day_ahead_market",
+        "partition_cols": ["year", "month"],
     },
 }
 
@@ -355,6 +373,68 @@ def ingest_load_forecast(
     df["_ingested_at"] = datetime.utcnow()
     df["_source"] = "ercot_web"
     df["_endpoint"] = "load_forecast"
+    
+    return df
+
+
+def ingest_lmp_settlement_point(
+    api: ErcotAPI,
+    start_date: str,
+    end_date: Optional[str] = None,
+    verbose: bool = False
+) -> pd.DataFrame:
+    """
+    Ingest real-time LMP by settlement point.
+    
+    Locational Marginal Prices (LMPs) from SCED, updated approximately every 5 minutes.
+    Includes settlement points like hubs, load zones, and resource nodes.
+    
+    Returns DataFrame with columns:
+    - Interval Start/End, Settlement Point, LMP, etc.
+    """
+    df = api.get_lmp_by_settlement_point(
+        date=start_date,
+        end=end_date,
+        verbose=verbose
+    )
+    
+    # Rename columns to remove spaces (Delta Lake doesn't allow spaces)
+    df.columns = [col.replace(" ", "_").replace("(", "").replace(")", "") for col in df.columns]
+    
+    df["_ingested_at"] = datetime.utcnow()
+    df["_source"] = "ercot_api"
+    df["_endpoint"] = "/np6-905-cd/spp_node_zone_hub"
+    
+    return df
+
+
+def ingest_lmp_dam(
+    api: ErcotAPI,
+    start_date: str,
+    end_date: Optional[str] = None,
+    verbose: bool = False
+) -> pd.DataFrame:
+    """
+    Ingest Day-Ahead Market (DAM) hourly LMPs by bus.
+    
+    Hourly LMPs from the Day-Ahead Market settlement.
+    Published daily for the next operating day.
+    
+    Returns DataFrame with columns:
+    - Delivery Date, Hour Ending, Bus Name, LMP, etc.
+    """
+    df = api.get_lmp_by_bus_dam(
+        date=start_date,
+        end=end_date,
+        verbose=verbose
+    )
+    
+    # Rename columns to remove spaces (Delta Lake doesn't allow spaces)
+    df.columns = [col.replace(" ", "_").replace("(", "").replace(")", "") for col in df.columns]
+    
+    df["_ingested_at"] = datetime.utcnow()
+    df["_source"] = "ercot_api"
+    df["_endpoint"] = "/np4-183-cd/dam_hourly_lmp"
     
     return df
 
@@ -533,6 +613,10 @@ def run_bronze_ingestion():
                 df = ingest_load_forecast(start_date, end_date, verbose=True)
             elif source_key == "fuel_mix":
                 df = ingest_fuel_mix(verbose=True)
+            elif source_key == "lmp_settlement_point":
+                df = ingest_lmp_settlement_point(api, start_date, end_date, verbose=True)
+            elif source_key == "lmp_dam":
+                df = ingest_lmp_dam(api, start_date, end_date, verbose=True)
             else:
                 print(f"⚠ No ingestion function for {source_key}")
                 continue
