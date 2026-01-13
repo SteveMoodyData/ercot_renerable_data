@@ -635,5 +635,5 @@ print()
 # COMMAND ----------
 
 # Uncomment to clean up test catalog
-# spark.sql(f"DROP CATALOG IF EXISTS {TEST_CATALOG} CASCADE")
-# print(f"✓ Dropped test catalog: {TEST_CATALOG}")
+spark.sql(f"DROP CATALOG IF EXISTS {TEST_CATALOG} CASCADE")
+print(f"✓ Dropped test catalog: {TEST_CATALOG}")
